@@ -684,6 +684,12 @@
       <button id="save-del-btn" class="save-btn-danger" onclick="deleteSelectedSave()" disabled>削除</button>
     </div>
     <div id="save-message" class="save-message"></div>
+    <div class="save-row" style="border-top: 1px dashed #b0c0d0; padding-top: 8px; margin-top: 2px;">
+      <span class="save-label" style="color:#666;">バックアップ：</span>
+      <button class="save-btn-secondary" onclick="exportData()">データをエクスポート（.json）</button>
+      <button class="save-btn-secondary" onclick="importData()">データをインポート（.json）</button>
+      <span style="font-size:11px;color:#888;">別のPCへの移行・バックアップに使用</span>
+    </div>
   </div>
 
   <!-- よく使う医師名 -->
@@ -1279,6 +1285,51 @@ function deserializePersonRowsData(containerId, type, persons) {
     row.querySelector('[data-field="start"]').value = p.start ?? 0;
     row.querySelector('[data-field="end"]').value = p.end ?? 6;
   });
+}
+
+function exportData() {
+  const data = { doctors: doctorList, saves: loadAllSaves() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'schedule-data.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showSaveMsg('エクスポートしました', 'ok');
+}
+
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (Array.isArray(data.doctors)) {
+          doctorList = data.doctors;
+          saveDoctors();
+          updateDatalist();
+          renderDoctorChips();
+        }
+        if (Array.isArray(data.saves)) {
+          storeAllSaves(data.saves);
+          renderSaveSelect('');
+        }
+        showSaveMsg('インポートしました', 'ok');
+      } catch(err) {
+        showSaveMsg('読み込みに失敗しました（ファイルを確認してください）', 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
 }
 
 // init save UI + auto-save on any input change
