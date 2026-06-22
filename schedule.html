@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>週間勤務表</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans JP', 'メイリオ', sans-serif;
+    font-size: 13px;
+    background: #f5f5f5;
+    color: #111;
+    padding: 20px;
+  }
+
+  /* ===== FORM AREA ===== */
+  .form-area {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 24px;
+    max-width: 1100px;
+    margin: 0 auto 30px;
+  }
+
+  .form-area h1 {
+    font-size: 18px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #555;
+    padding-bottom: 8px;
+  }
+
+  .form-section {
+    margin-bottom: 22px;
+  }
+
+  .form-section h2 {
+    font-size: 14px;
+    font-weight: bold;
+    background: #e8e8e8;
+    padding: 4px 10px;
+    margin-bottom: 10px;
+    border-left: 4px solid #555;
+  }
+
+  .basic-row {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  .basic-row label {
+    font-size: 13px;
+    white-space: nowrap;
+    min-width: 120px;
+  }
+
+  .basic-row input {
+    padding: 4px 8px;
+    border: 1px solid #aaa;
+    border-radius: 3px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+
+  /* Day grid for outpatient/absent/oncall/emergency */
+  .day-grid {
+    display: grid;
+    grid-template-columns: 70px repeat(7, 1fr);
+    gap: 0;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .day-grid-header {
+    display: contents;
+  }
+
+  .day-grid-header > div {
+    background: #e0e0e0;
+    text-align: center;
+    font-weight: bold;
+    padding: 5px 2px;
+    font-size: 12px;
+    border-right: 1px solid #bbb;
+    border-bottom: 1px solid #bbb;
+  }
+
+  .day-grid-header > div:first-child {
+    /* label spacer */
+  }
+
+  .day-grid-header > div.weekend {
+    background: #c8c8c8;
+  }
+
+  .day-grid-body {
+    display: contents;
+  }
+
+  .day-grid-row {
+    display: contents;
+  }
+
+  .day-grid-row > .row-label {
+    background: #f0f0f0;
+    padding: 4px 4px;
+    font-size: 11px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    border-right: 1px solid #bbb;
+    border-bottom: 1px solid #bbb;
+  }
+
+  .day-cell {
+    border-right: 1px solid #bbb;
+    border-bottom: 1px solid #bbb;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-height: 36px;
+  }
+
+  .day-cell.weekend-bg {
+    background: #f8f8f8;
+  }
+
+  .day-cell input[type="text"] {
+    width: 100%;
+    padding: 3px 5px;
+    border: 1px solid #bbb;
+    border-radius: 2px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+
+  .day-cell.split-cell {
+    padding: 0;
+    gap: 0;
+  }
+
+  .split-top, .split-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 4px;
+    flex: 1;
+  }
+
+  .split-top {
+    border-bottom: 1px solid #bbb;
+  }
+
+  .split-label {
+    font-size: 10px;
+    color: #555;
+    font-weight: bold;
+    margin-bottom: 2px;
+  }
+
+  .add-btn {
+    background: none;
+    border: 1px dashed #888;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 11px;
+    cursor: pointer;
+    color: #555;
+    margin-top: 2px;
+  }
+
+  .add-btn:hover { background: #eee; }
+
+  .input-row {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+  }
+
+  .input-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 2px 4px;
+    border: 1px solid #bbb;
+    border-radius: 2px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+
+  .del-btn {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .del-btn:hover { color: #c00; }
+
+  /* Visitor/Trainee rows */
+  .person-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .person-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: #fafafa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 6px 10px;
+  }
+
+  .person-row label {
+    font-size: 11px;
+    color: #555;
+    white-space: nowrap;
+  }
+
+  .person-row input, .person-row select {
+    padding: 3px 6px;
+    border: 1px solid #bbb;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+
+  .person-row input.name-input { width: 120px; }
+  .person-row input.team-input { width: 120px; }
+  .person-row select { width: 80px; }
+
+  .add-person-btn {
+    background: #555;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    margin-top: 8px;
+    font-family: inherit;
+  }
+
+  .add-person-btn:hover { background: #333; }
+
+  .generate-btn {
+    display: block;
+    background: #222;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 12px 40px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 10px auto 0;
+    font-family: inherit;
+  }
+
+  .generate-btn:hover { background: #000; }
+
+  /* ===== OUTPUT AREA ===== */
+  #output {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .schedule-wrapper {
+    background: #fff;
+    padding: 16px;
+    border: 1px solid #aaa;
+    position: relative;
+  }
+
+  .schedule-title {
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 0.5em;
+    margin-bottom: 4px;
+  }
+
+  .schedule-subtitle {
+    text-align: center;
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+
+  .schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    border: 1.5px solid #000;
+    font-size: 11px;
+  }
+
+  .schedule-table th,
+  .schedule-table td {
+    border: 0.5px solid #888;
+    padding: 4px 5px;
+    vertical-align: top;
+  }
+
+  /* Remove top/bottom borders from body cells — horizontal lines only at category boundaries */
+  .schedule-table tbody td {
+    border-top: none;
+    border-bottom: none;
+  }
+
+  .schedule-table thead th {
+    background: #e0e0e0;
+    text-align: center;
+    font-weight: bold;
+    border: 0.5px solid #888;
+    font-size: 12px;
+    padding: 5px 4px;
+  }
+
+  .schedule-table thead th.weekend-col {
+    background: #c4c4c4;
+  }
+
+  .schedule-table .label-col {
+    background: #ebebeb;
+    font-weight: bold;
+    font-size: 10px;
+    text-align: center;
+    width: 56px;
+    border-right: 1.5px solid #000 !important;
+    vertical-align: middle;
+  }
+
+  .schedule-table .day-col {
+    width: calc((100% - 56px) / 7);
+  }
+
+  .schedule-table .weekend-bg {
+    background: #f2f2f2;
+  }
+
+  /* Category border */
+  .cat-border-top td,
+  .cat-border-top th {
+    border-top: 1.5px solid #000 !important;
+  }
+
+  .cat-border-top .label-col {
+    border-top: 1.5px solid #000 !important;
+  }
+
+  /* Emergency split cell */
+  .emg-cell {
+    padding: 0 !important;
+  }
+
+  .emg-day-top, .emg-day-bottom {
+    padding: 3px 5px;
+    font-size: 10px;
+  }
+
+  .emg-day-top {
+    border-bottom: 1px solid #aaa;
+  }
+
+  .emg-slot-label {
+    font-size: 9px;
+    color: #555;
+    font-weight: bold;
+  }
+
+  .emg-name {
+    font-size: 10px;
+  }
+
+  .emg-none {
+    color: #aaa;
+    font-size: 10px;
+  }
+
+  /* Person bar for visitors/trainees */
+  .person-cell {
+    padding: 4px 5px !important;
+    min-height: 28px;
+    vertical-align: middle;
+  }
+
+  .person-name-block {
+    display: inline-flex;
+    flex-direction: column;
+    font-size: 10px;
+    line-height: 1.4;
+    word-break: break-all;
+  }
+
+  .person-team {
+    font-size: 8px;
+    color: #555;
+  }
+
+  /* continuation cell: ::before draws the bar and overlaps cell borders by 1px each side */
+  .person-cont {
+    padding: 0 !important;
+    position: relative;
+  }
+
+  .person-cont::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: -1px;
+    right: -1px;
+    height: 5px;
+    background: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    z-index: 3;
+  }
+
+  .person-absent {
+    color: #aaa;
+    font-size: 10px;
+  }
+
+  /* multiple names in cell */
+  .cell-names > div {
+    font-size: 11px;
+    padding: 1px 0;
+  }
+
+  .cell-names > div + div {
+    border-top: none !important;
+  }
+
+  /* continuation rows within same category: hide top border */
+  .cat-cont-row td {
+    border-top: none !important;
+  }
+
+  /* footer */
+  .schedule-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 9px;
+    color: #444;
+  }
+
+  .print-btn {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    background: #333;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 20px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .print-btn:hover { background: #000; }
+
+  /* ===== SAVE PANEL ===== */
+  .save-panel-section {
+    background: #eef2f7;
+    border: 1px solid #c0cfe0;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .save-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .save-label {
+    font-size: 13px;
+    font-weight: bold;
+    white-space: nowrap;
+    min-width: 72px;
+    color: #334;
+  }
+
+  .save-panel-section input[type="text"],
+  .save-panel-section select {
+    padding: 5px 9px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+  }
+
+  #save-name-input { width: 230px; }
+  #save-select { width: 300px; }
+
+  .save-btn-primary { background: #2a6496; color: #fff; }
+  .save-btn-primary:hover { background: #1a4a70; }
+  .save-btn-secondary { background: #555; color: #fff; }
+  .save-btn-secondary:hover:not(:disabled) { background: #222; }
+  .save-btn-danger { background: #fff; color: #b00; border: 1px solid #c00 !important; }
+  .save-btn-danger:hover:not(:disabled) { background: #fee; }
+
+  .save-btn-primary, .save-btn-secondary, .save-btn-danger {
+    padding: 5px 14px;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+
+  button:disabled { opacity: 0.35; cursor: default; }
+
+  .save-message {
+    font-size: 12px;
+    min-height: 16px;
+    transition: opacity 0.3s;
+  }
+  .save-message.ok    { color: #1a7a3a; }
+  .save-message.error { color: #c00; }
+
+  /* ===== DOCTOR PANEL ===== */
+  .doctor-panel {
+    background: #f7f7f7;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 14px;
+  }
+
+  .doctor-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+    min-height: 30px;
+    align-items: center;
+  }
+
+  .chip-empty {
+    font-size: 12px;
+    color: #bbb;
+    font-style: italic;
+  }
+
+  .doctor-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #fff;
+    border: 1.5px solid #999;
+    border-radius: 20px;
+    padding: 3px 8px 3px 13px;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+  }
+
+  .doctor-chip:hover {
+    background: #333;
+    color: #fff;
+    border-color: #333;
+  }
+
+  .doctor-chip:hover .chip-del { color: #ccc; }
+
+  .doctor-chip.chip-active {
+    background: #111;
+    color: #fff;
+    border-color: #111;
+  }
+
+  .doctor-chip.chip-active .chip-del { color: #bbb; }
+
+  .chip-del {
+    font-size: 15px;
+    color: #bbb;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .doctor-add-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .doctor-add-row input {
+    padding: 5px 9px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    width: 200px;
+  }
+
+  .doctor-add-row button {
+    padding: 5px 16px;
+    background: #555;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .doctor-add-row button:hover { background: #222; }
+
+  .doctor-hint {
+    font-size: 11px;
+    color: #999;
+    margin-top: 7px;
+  }
+
+  /* ===== PRINT ===== */
+  @media print {
+    body { background: #fff; padding: 0; }
+    .form-area { display: none !important; }
+    .print-btn { display: none !important; }
+    #output { max-width: 100%; }
+    .schedule-wrapper { border: none; padding: 0; }
+    @page { size: A4 landscape; margin: 10mm; }
+
+    /* Force all background colors and images to print */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    .person-cell {
+      min-height: 28px !important;
+    }
+
+    .person-cont::before {
+      background: #000 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== FORM ===== -->
+<div class="form-area">
+  <h1>週間勤務表 入力フォーム</h1>
+
+  <!-- 保存・読み込み -->
+  <div class="save-panel-section">
+    <div class="save-row">
+      <span class="save-label">保存名：</span>
+      <input type="text" id="save-name-input" placeholder="例）第3週・通常パターン"
+             onkeydown="if(event.key==='Enter'){saveCurrentForm();event.preventDefault();}">
+      <button class="save-btn-primary" onclick="saveCurrentForm()">保存する</button>
+    </div>
+    <div class="save-row">
+      <span class="save-label">読み込み：</span>
+      <select id="save-select"><option value="">— 保存データを選択 —</option></select>
+      <button id="save-load-btn" class="save-btn-secondary" onclick="loadSelectedSave()" disabled>読み込む</button>
+      <button id="save-del-btn" class="save-btn-danger" onclick="deleteSelectedSave()" disabled>削除</button>
+    </div>
+    <div id="save-message" class="save-message"></div>
+  </div>
+
+  <!-- よく使う医師名 -->
+  <div class="form-section">
+    <h2>よく使う医師名</h2>
+    <div class="doctor-panel">
+      <div class="doctor-chips" id="doctor-chips">
+        <span class="chip-empty">まだ登録されていません</span>
+      </div>
+      <div class="doctor-add-row">
+        <input type="text" id="doctor-add-input" placeholder="医師名を入力して追加"
+               onkeydown="if(event.key==='Enter'){addDoctorFromInput();event.preventDefault();}">
+        <button onclick="addDoctorFromInput()">追加</button>
+      </div>
+      <div class="doctor-hint">チップをクリックすると、フォーカス中の氏名欄に名前を挿入します　／　入力中はオートコンプリートも動作します</div>
+    </div>
+  </div>
+
+  <!-- 基本情報 -->
+  <div class="form-section">
+    <h2>基本情報</h2>
+    <div class="basic-row">
+      <label>週の開始日（月曜日）：</label>
+      <input type="date" id="startDate">
+      <label style="margin-left:20px;">作成者名：</label>
+      <input type="text" id="creatorName" placeholder="氏名" style="width:160px;">
+    </div>
+  </div>
+
+  <!-- 外来担当 -->
+  <div class="form-section">
+    <h2>外来担当</h2>
+    <div id="outpatient-grid" class="day-grid">
+      <div class="day-grid-header">
+        <div></div>
+        <div>月</div><div>火</div><div>水</div><div>木</div><div>金</div>
+        <div class="weekend">土</div><div class="weekend">日</div>
+      </div>
+      <div class="day-grid-row" id="outpatient-row-0">
+        <div class="row-label"></div>
+        <div class="day-cell" data-cat="outpatient" data-day="0"></div>
+        <div class="day-cell" data-cat="outpatient" data-day="1"></div>
+        <div class="day-cell" data-cat="outpatient" data-day="2"></div>
+        <div class="day-cell" data-cat="outpatient" data-day="3"></div>
+        <div class="day-cell" data-cat="outpatient" data-day="4"></div>
+        <div class="day-cell weekend-bg" data-cat="outpatient" data-day="5"></div>
+        <div class="day-cell weekend-bg" data-cat="outpatient" data-day="6"></div>
+      </div>
+    </div>
+    <div style="margin-top:6px;">
+      <button class="add-btn" onclick="addMultiRow('outpatient-grid','outpatient')">＋ 行を追加</button>
+    </div>
+  </div>
+
+  <!-- 不在者 -->
+  <div class="form-section">
+    <h2>不在者</h2>
+    <div id="absent-grid" class="day-grid">
+      <div class="day-grid-header">
+        <div></div>
+        <div>月</div><div>火</div><div>水</div><div>木</div><div>金</div>
+        <div class="weekend">土</div><div class="weekend">日</div>
+      </div>
+      <div class="day-grid-row" id="absent-row-0">
+        <div class="row-label"></div>
+        <div class="day-cell" data-cat="absent" data-day="0"></div>
+        <div class="day-cell" data-cat="absent" data-day="1"></div>
+        <div class="day-cell" data-cat="absent" data-day="2"></div>
+        <div class="day-cell" data-cat="absent" data-day="3"></div>
+        <div class="day-cell" data-cat="absent" data-day="4"></div>
+        <div class="day-cell weekend-bg" data-cat="absent" data-day="5"></div>
+        <div class="day-cell weekend-bg" data-cat="absent" data-day="6"></div>
+      </div>
+    </div>
+    <div style="margin-top:6px;">
+      <button class="add-btn" onclick="addMultiRow('absent-grid','absent')">＋ 行を追加</button>
+    </div>
+  </div>
+
+  <!-- 当番医 -->
+  <div class="form-section">
+    <h2>当番医　<span style="font-size:11px;font-weight:normal;color:#555;">（平日は夜間のみ、土日祝は終日）</span></h2>
+    <div id="oncall-grid" class="day-grid">
+      <div class="day-grid-header">
+        <div></div>
+        <div>月</div><div>火</div><div>水</div><div>木</div><div>金</div>
+        <div class="weekend">土</div><div class="weekend">日</div>
+      </div>
+      <div class="day-grid-row" id="oncall-row-0">
+        <div class="row-label"></div>
+        <div class="day-cell" data-cat="oncall" data-day="0"></div>
+        <div class="day-cell" data-cat="oncall" data-day="1"></div>
+        <div class="day-cell" data-cat="oncall" data-day="2"></div>
+        <div class="day-cell" data-cat="oncall" data-day="3"></div>
+        <div class="day-cell" data-cat="oncall" data-day="4"></div>
+        <div class="day-cell weekend-bg" data-cat="oncall" data-day="5"></div>
+        <div class="day-cell weekend-bg" data-cat="oncall" data-day="6"></div>
+      </div>
+    </div>
+    <div style="margin-top:6px;">
+      <button class="add-btn" onclick="addMultiRow('oncall-grid','oncall')">＋ 行を追加</button>
+    </div>
+  </div>
+
+  <!-- 救急当直 -->
+  <div class="form-section">
+    <h2>救急当直</h2>
+    <div class="day-grid">
+      <div class="day-grid-header">
+        <div></div>
+        <div>月</div><div>火</div><div>水</div><div>木</div><div>金</div>
+        <div class="weekend">土</div><div class="weekend">日</div>
+      </div>
+      <div class="day-grid-row">
+        <div class="row-label" style="font-size:9px;">当直</div>
+        <!-- Mon-Fri: simple multi-input cells -->
+        <div class="day-cell" id="emg-cell-0"></div>
+        <div class="day-cell" id="emg-cell-1"></div>
+        <div class="day-cell" id="emg-cell-2"></div>
+        <div class="day-cell" id="emg-cell-3"></div>
+        <div class="day-cell" id="emg-cell-4"></div>
+        <!-- Sat: split -->
+        <div class="day-cell weekend-bg split-cell" id="emg-cell-5">
+          <div class="split-top">
+            <div class="split-label">日直</div>
+            <div id="emg-sat-day"></div>
+          </div>
+          <div class="split-bottom">
+            <div class="split-label">当直</div>
+            <div id="emg-sat-night"></div>
+          </div>
+        </div>
+        <!-- Sun: split -->
+        <div class="day-cell weekend-bg split-cell" id="emg-cell-6">
+          <div class="split-top">
+            <div class="split-label">日直</div>
+            <div id="emg-sun-day"></div>
+          </div>
+          <div class="split-bottom">
+            <div class="split-label">当直</div>
+            <div id="emg-sun-night"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 見学生 -->
+  <div class="form-section">
+    <h2>見学生</h2>
+    <div class="person-rows" id="visitors-rows"></div>
+    <button class="add-person-btn" onclick="addPersonRow('visitors-rows','visitor')">＋ 見学生を追加</button>
+  </div>
+
+  <!-- 実習生 -->
+  <div class="form-section">
+    <h2>実習生</h2>
+    <div class="person-rows" id="trainees-rows"></div>
+    <button class="add-person-btn" onclick="addPersonRow('trainees-rows','trainee')">＋ 実習生を追加</button>
+  </div>
+
+  <button class="generate-btn" onclick="generateSchedule()">勤務表を生成</button>
+</div>
+
+<!-- ===== OUTPUT ===== -->
+<div id="output"></div>
+
+<datalist id="doctor-datalist"></datalist>
+
+<script>
+// ====== DOCTOR LIST ======
+const STORAGE_KEY = 'schedule-doctor-list';
+let doctorList = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let lastFocusedInput = null;
+
+function saveDoctors() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(doctorList));
+}
+
+function updateDatalist() {
+  const dl = document.getElementById('doctor-datalist');
+  dl.innerHTML = doctorList.map(n => `<option value="${n}">`).join('');
+}
+
+function renderDoctorChips() {
+  const container = document.getElementById('doctor-chips');
+  if (doctorList.length === 0) {
+    container.innerHTML = '<span class="chip-empty">まだ登録されていません</span>';
+    return;
+  }
+  const currentVal = lastFocusedInput ? lastFocusedInput.value.trim() : '';
+  container.innerHTML = doctorList.map((name, i) => {
+    const active = (name === currentVal) ? ' chip-active' : '';
+    return `<span class="doctor-chip${active}" onclick="insertDoctor('${name.replace(/'/g,"\\'")}')">
+      <span class="chip-name">${name}</span>
+      <span class="chip-del" onclick="event.stopPropagation();removeDoctor(${i})">×</span>
+    </span>`;
+  }).join('');
+}
+
+function addDoctorFromInput() {
+  const inp = document.getElementById('doctor-add-input');
+  const name = inp.value.trim();
+  if (!name || doctorList.includes(name)) { inp.value = ''; return; }
+  doctorList.push(name);
+  saveDoctors();
+  updateDatalist();
+  renderDoctorChips();
+  inp.value = '';
+  inp.focus();
+}
+
+function removeDoctor(idx) {
+  doctorList.splice(idx, 1);
+  saveDoctors();
+  updateDatalist();
+  renderDoctorChips();
+}
+
+function insertDoctor(name) {
+  if (!lastFocusedInput) {
+    alert('氏名入力欄をクリックしてからチップを押してください。');
+    return;
+  }
+  lastFocusedInput.value = name;
+  lastFocusedInput.focus();
+  renderDoctorChips();
+}
+
+function trackFocus(inp) {
+  inp.addEventListener('focus', () => {
+    lastFocusedInput = inp;
+    renderDoctorChips();
+  });
+}
+
+updateDatalist();
+renderDoctorChips();
+
+// ====== FORM INIT ======
+const DAY_NAMES = ['月','火','水','木','金','土','日'];
+const DAY_OPTIONS = DAY_NAMES.map((d,i) => `<option value="${i}">${d}</option>`).join('');
+
+// Emergency weekday cells init
+(function initEmgCells() {
+  for (let d = 0; d < 5; d++) {
+    const cell = document.getElementById('emg-cell-' + d);
+    addInputToEmgCell(cell, d, false);
+  }
+  addInputToEmgCell(document.getElementById('emg-sat-day'), 5, true, 'sat-day');
+  addInputToEmgCell(document.getElementById('emg-sat-night'), 5, true, 'sat-night');
+  addInputToEmgCell(document.getElementById('emg-sun-day'), 6, true, 'sun-day');
+  addInputToEmgCell(document.getElementById('emg-sun-night'), 6, true, 'sun-night');
+})();
+
+function addInputToEmgCell(container, day, isSplit, splitKey) {
+  const key = isSplit ? splitKey : 'emg-' + day;
+  const row = document.createElement('div');
+  row.className = 'input-row';
+  row.dataset.emgKey = key;
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.placeholder = '氏名';
+  inp.setAttribute('list', 'doctor-datalist');
+  inp.style.cssText = 'flex:1;min-width:0;padding:2px 4px;border:1px solid #bbb;border-radius:2px;font-size:12px;font-family:inherit;';
+  trackFocus(inp);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'del-btn';
+  delBtn.textContent = '×';
+  delBtn.title = '削除';
+  delBtn.onclick = function() {
+    const rows = container.querySelectorAll('.input-row');
+    if (rows.length > 1) row.remove();
+    else inp.value = '';
+  };
+
+  row.appendChild(inp);
+  row.appendChild(delBtn);
+
+  // Add button after existing rows
+  const existing = container.querySelector('.add-emg-btn');
+  if (existing) {
+    container.insertBefore(row, existing);
+  } else {
+    container.appendChild(row);
+    const addB = document.createElement('button');
+    addB.className = 'add-btn add-emg-btn';
+    addB.textContent = '＋';
+    addB.onclick = () => addInputToEmgCell(container, day, isSplit, splitKey);
+    container.appendChild(addB);
+  }
+}
+
+// Multi-row grids (outpatient/absent/oncall)
+const multiRowCounts = { outpatient: 1, absent: 1, oncall: 1 };
+
+function initDayCells(gridId, cat, rowIndex) {
+  const row = document.getElementById(cat + '-row-' + rowIndex);
+  if (!row) return;
+  for (let d = 0; d < 7; d++) {
+    const cell = row.querySelector('[data-day="' + d + '"]');
+    if (cell) addInputToMultiCell(cell, cat, d, rowIndex);
+  }
+}
+
+initDayCells('outpatient-grid', 'outpatient', 0);
+initDayCells('absent-grid', 'absent', 0);
+initDayCells('oncall-grid', 'oncall', 0);
+
+function addInputToMultiCell(cell, cat, day, rowIndex) {
+  const row = document.createElement('div');
+  row.className = 'input-row';
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.placeholder = '氏名';
+  inp.setAttribute('list', 'doctor-datalist');
+  trackFocus(inp);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'del-btn';
+  delBtn.textContent = '×';
+  delBtn.onclick = function() {
+    const rows = cell.querySelectorAll('.input-row');
+    if (rows.length > 1) row.remove();
+    else inp.value = '';
+  };
+
+  row.appendChild(inp);
+  row.appendChild(delBtn);
+  cell.appendChild(row);
+}
+
+function addMultiRow(gridId, cat) {
+  const grid = document.getElementById(gridId);
+  const idx = multiRowCounts[cat];
+  multiRowCounts[cat]++;
+
+  const rowDiv = document.createElement('div');
+  rowDiv.className = 'day-grid-row';
+  rowDiv.id = cat + '-row-' + idx;
+
+  const label = document.createElement('div');
+  label.className = 'row-label';
+  rowDiv.appendChild(label);
+
+  for (let d = 0; d < 7; d++) {
+    const cell = document.createElement('div');
+    cell.className = 'day-cell' + (d >= 5 ? ' weekend-bg' : '');
+    cell.dataset.cat = cat;
+    cell.dataset.day = d;
+    addInputToMultiCell(cell, cat, d, idx);
+    rowDiv.appendChild(cell);
+  }
+
+  grid.appendChild(rowDiv);
+}
+
+// Person rows (visitor/trainee)
+let personCounts = { visitor: 0, trainee: 0 };
+
+function addPersonRow(containerId, type) {
+  const container = document.getElementById(containerId);
+  const idx = personCounts[type]++;
+
+  const row = document.createElement('div');
+  row.className = 'person-row';
+  row.dataset.personIdx = idx;
+
+  row.innerHTML = `
+    <label>名前：</label>
+    <input type="text" class="name-input" placeholder="氏名" list="doctor-datalist"
+           data-type="${type}" data-field="name" data-idx="${idx}">
+    <label>チーム：</label>
+    <input type="text" class="team-input" placeholder="チーム名" data-type="${type}" data-field="team" data-idx="${idx}">
+    <label>開始：</label>
+    <select data-type="${type}" data-field="start" data-idx="${idx}">${DAY_OPTIONS}</select>
+    <label>終了：</label>
+    <select data-type="${type}" data-field="end" data-idx="${idx}">
+      ${DAY_NAMES.map((d,i) => `<option value="${i}" ${i===6?'selected':''}>${d}</option>`).join('')}
+    </select>
+    <button class="del-btn" style="margin-left:auto;font-size:18px;" onclick="this.parentElement.remove()">×</button>
+  `;
+
+  container.appendChild(row);
+  const nameInp = row.querySelector('.name-input');
+  trackFocus(nameInp);
+}
+
+// ====== SAVE / LOAD ======
+const SAVES_KEY = 'schedule-form-saves';
+
+function loadAllSaves() {
+  return JSON.parse(localStorage.getItem(SAVES_KEY) || '[]');
+}
+function storeAllSaves(saves) {
+  localStorage.setItem(SAVES_KEY, JSON.stringify(saves));
+}
+
+function serializeForm() {
+  return {
+    startDate: document.getElementById('startDate').value,
+    creatorName: document.getElementById('creatorName').value.trim(),
+    outpatient: serializeMultiGrid('outpatient'),
+    absent: serializeMultiGrid('absent'),
+    oncall: serializeMultiGrid('oncall'),
+    emg: serializeEmgForm(),
+    visitors: serializePersonRowsFrm('visitors-rows'),
+    trainees: serializePersonRowsFrm('trainees-rows'),
+  };
+}
+
+function serializeMultiGrid(cat) {
+  const rows = [];
+  for (let r = 0; r < multiRowCounts[cat]; r++) {
+    const rowDiv = document.getElementById(cat + '-row-' + r);
+    if (!rowDiv) continue;
+    const rowData = [];
+    for (let d = 0; d < 7; d++) {
+      const cell = rowDiv.querySelector('[data-day="' + d + '"]');
+      rowData.push(cell ? Array.from(cell.querySelectorAll('input[type="text"]')).map(i => i.value.trim()) : []);
+    }
+    rows.push(rowData);
+  }
+  return rows;
+}
+
+function serializeEmgForm() {
+  const weekday = [];
+  for (let d = 0; d < 5; d++) {
+    const cell = document.getElementById('emg-cell-' + d);
+    weekday.push(Array.from(cell.querySelectorAll('input[type="text"]')).map(i => i.value.trim()));
+  }
+  const names = id => Array.from(document.getElementById(id).querySelectorAll('input[type="text"]')).map(i => i.value.trim());
+  return { weekday, satDay: names('emg-sat-day'), satNight: names('emg-sat-night'), sunDay: names('emg-sun-day'), sunNight: names('emg-sun-night') };
+}
+
+function serializePersonRowsFrm(containerId) {
+  return Array.from(document.getElementById(containerId).querySelectorAll('.person-row')).map(row => ({
+    name: row.querySelector('[data-field="name"]').value.trim(),
+    team: row.querySelector('[data-field="team"]').value.trim(),
+    start: parseInt(row.querySelector('[data-field="start"]').value),
+    end: parseInt(row.querySelector('[data-field="end"]').value),
+  }));
+}
+
+function saveCurrentForm() {
+  const nameEl = document.getElementById('save-name-input');
+  const name = nameEl.value.trim();
+  if (!name) { showSaveMsg('保存名を入力してください', 'error'); nameEl.focus(); return; }
+  const saves = loadAllSaves();
+  const existing = saves.findIndex(s => s.name === name);
+  const entry = { name, savedAt: new Date().toLocaleString('ja-JP'), data: serializeForm() };
+  if (existing >= 0) {
+    if (!confirm(`「${name}」は既に存在します。上書きしますか？`)) return;
+    saves[existing] = entry;
+  } else {
+    saves.push(entry);
+  }
+  storeAllSaves(saves);
+  renderSaveSelect(name);
+  showSaveMsg(`「${name}」を保存しました`, 'ok');
+}
+
+function loadSelectedSave() {
+  const name = document.getElementById('save-select').value;
+  if (!name) return;
+  const entry = loadAllSaves().find(s => s.name === name);
+  if (!entry) return;
+  if (!confirm(`「${name}」を読み込みます。現在の入力内容は上書きされます。よろしいですか？`)) return;
+  deserializeForm(entry.data);
+  showSaveMsg(`「${name}」を読み込みました`, 'ok');
+}
+
+function deleteSelectedSave() {
+  const name = document.getElementById('save-select').value;
+  if (!name) return;
+  if (!confirm(`「${name}」を削除しますか？`)) return;
+  storeAllSaves(loadAllSaves().filter(s => s.name !== name));
+  renderSaveSelect('');
+  showSaveMsg(`「${name}」を削除しました`, 'ok');
+}
+
+function renderSaveSelect(selectName) {
+  const saves = loadAllSaves();
+  const sel = document.getElementById('save-select');
+  sel.innerHTML = '<option value="">— 保存データを選択 —</option>' +
+    saves.map(s => `<option value="${s.name}">${s.name}　（${s.savedAt}）</option>`).join('');
+  if (selectName && saves.find(s => s.name === selectName)) sel.value = selectName;
+  const hasSaves = saves.length > 0;
+  document.getElementById('save-load-btn').disabled = !hasSaves;
+  document.getElementById('save-del-btn').disabled = !hasSaves;
+}
+
+function showSaveMsg(msg, type) {
+  const el = document.getElementById('save-message');
+  el.textContent = msg;
+  el.className = 'save-message ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.textContent = ''; el.className = 'save-message'; }, 3000);
+}
+
+// ----- Deserialize -----
+function deserializeForm(data) {
+  if (!data) return;
+  document.getElementById('startDate').value = data.startDate || '';
+  document.getElementById('creatorName').value = data.creatorName || '';
+  deserializeMultiGrid('outpatient', data.outpatient || []);
+  deserializeMultiGrid('absent', data.absent || []);
+  deserializeMultiGrid('oncall', data.oncall || []);
+  deserializeEmgForm(data.emg || {});
+  deserializePersonRowsData('visitors-rows', 'visitor', data.visitors || []);
+  deserializePersonRowsData('trainees-rows', 'trainee', data.trainees || []);
+}
+
+function deserializeMultiGrid(cat, rows) {
+  // remove extra rows beyond row-0
+  while (multiRowCounts[cat] > 1) {
+    multiRowCounts[cat]--;
+    const el = document.getElementById(cat + '-row-' + multiRowCounts[cat]);
+    if (el) el.remove();
+  }
+  // reset row-0: remove all input-rows and re-add one per cell
+  const row0 = document.getElementById(cat + '-row-0');
+  for (let d = 0; d < 7; d++) {
+    const cell = row0.querySelector('[data-day="' + d + '"]');
+    if (!cell) continue;
+    cell.querySelectorAll('.input-row').forEach(r => r.remove());
+    addInputToMultiCell(cell, cat, d, 0);
+  }
+  if (!rows.length) return;
+  fillMultiGridRow(cat, 0, rows[0] || []);
+  for (let r = 1; r < rows.length; r++) {
+    addMultiRow(cat + '-grid', cat);
+    fillMultiGridRow(cat, r, rows[r] || []);
+  }
+}
+
+function fillMultiGridRow(cat, rowIdx, rowData) {
+  const rowDiv = document.getElementById(cat + '-row-' + rowIdx);
+  if (!rowDiv) return;
+  for (let d = 0; d < 7; d++) {
+    const cell = rowDiv.querySelector('[data-day="' + d + '"]');
+    if (!cell) continue;
+    const names = (rowData[d] || []).filter(Boolean);
+    const first = cell.querySelector('.input-row input');
+    if (first) first.value = names[0] || '';
+    for (let n = 1; n < names.length; n++) {
+      addInputToMultiCell(cell, cat, d, rowIdx);
+      const all = cell.querySelectorAll('.input-row input');
+      all[all.length - 1].value = names[n];
+    }
+  }
+}
+
+function deserializeEmgForm(emgData) {
+  for (let d = 0; d < 5; d++) {
+    fillEmgContainer(document.getElementById('emg-cell-' + d), d, false, null, (emgData.weekday || [])[d] || []);
+  }
+  [
+    ['emg-sat-day',   5, true, 'sat-day',   emgData.satDay],
+    ['emg-sat-night', 5, true, 'sat-night', emgData.satNight],
+    ['emg-sun-day',   6, true, 'sun-day',   emgData.sunDay],
+    ['emg-sun-night', 6, true, 'sun-night', emgData.sunNight],
+  ].forEach(([id, day, isSplit, key, names]) => {
+    fillEmgContainer(document.getElementById(id), day, isSplit, key, names || []);
+  });
+}
+
+function fillEmgContainer(container, day, isSplit, splitKey, names) {
+  container.querySelectorAll('.input-row').forEach(r => r.remove());
+  const effective = names.filter(Boolean);
+  const list = effective.length ? effective : [''];
+  list.forEach(name => {
+    addInputToEmgCell(container, day, isSplit, splitKey);
+    const rows = container.querySelectorAll('.input-row');
+    rows[rows.length - 1].querySelector('input').value = name;
+  });
+}
+
+function deserializePersonRowsData(containerId, type, persons) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  personCounts[type] = 0;
+  persons.forEach(p => {
+    addPersonRow(containerId, type);
+    const rows = container.querySelectorAll('.person-row');
+    const row = rows[rows.length - 1];
+    row.querySelector('[data-field="name"]').value = p.name || '';
+    row.querySelector('[data-field="team"]').value = p.team || '';
+    row.querySelector('[data-field="start"]').value = p.start ?? 0;
+    row.querySelector('[data-field="end"]').value = p.end ?? 6;
+  });
+}
+
+// init save UI + auto-save on any input change
+renderSaveSelect('');
+(function() {
+  let autoTimer = null;
+  document.querySelector('.form-area').addEventListener('input', () => {
+    clearTimeout(autoTimer);
+    autoTimer = setTimeout(() => {
+      const saves = loadAllSaves();
+      const entry = { name: '（自動保存）', savedAt: new Date().toLocaleString('ja-JP'), data: serializeForm() };
+      const idx = saves.findIndex(s => s.name === '（自動保存）');
+      if (idx >= 0) saves[idx] = entry; else saves.unshift(entry);
+      storeAllSaves(saves);
+      renderSaveSelect(document.getElementById('save-select').value);
+    }, 1500);
+  });
+})();
+
+// ====== DATA COLLECTION ======
+function getMultiCellData(cat) {
+  // Returns array[row][day] = name string
+  const count = multiRowCounts[cat];
+  const result = [];
+  for (let r = 0; r < count; r++) {
+    const rowDiv = document.getElementById(cat + '-row-' + r);
+    if (!rowDiv) continue;
+    const rowData = [];
+    for (let d = 0; d < 7; d++) {
+      const cell = rowDiv.querySelector('[data-day="' + d + '"]');
+      const names = cell ? Array.from(cell.querySelectorAll('input[type="text"]')).map(i => i.value.trim()).filter(Boolean) : [];
+      rowData.push(names);
+    }
+    result.push(rowData);
+  }
+  return result;
+}
+
+function getEmgData() {
+  const result = { weekday: [], satDay: [], satNight: [], sunDay: [], sunNight: [] };
+  for (let d = 0; d < 5; d++) {
+    const cell = document.getElementById('emg-cell-' + d);
+    result.weekday[d] = Array.from(cell.querySelectorAll('input[type="text"]')).map(i => i.value.trim()).filter(Boolean);
+  }
+  ['sat-day','sat-night','sun-day','sun-night'].forEach(key => {
+    const cont = document.getElementById('emg-' + key);
+    const names = Array.from(cont.querySelectorAll('input[type="text"]')).map(i => i.value.trim()).filter(Boolean);
+    if (key === 'sat-day') result.satDay = names;
+    else if (key === 'sat-night') result.satNight = names;
+    else if (key === 'sun-day') result.sunDay = names;
+    else result.sunNight = names;
+  });
+  return result;
+}
+
+function getPersonData(type) {
+  const container = document.getElementById(type === 'visitor' ? 'visitors-rows' : 'trainees-rows');
+  return Array.from(container.querySelectorAll('.person-row')).map(row => ({
+    name: row.querySelector('[data-field="name"]').value.trim(),
+    team: row.querySelector('[data-field="team"]').value.trim(),
+    start: parseInt(row.querySelector('[data-field="start"]').value),
+    end: parseInt(row.querySelector('[data-field="end"]').value)
+  })).filter(p => p.name);
+}
+
+// ====== DATE UTILITIES ======
+function getWeekDates(startStr) {
+  if (!startStr) return Array(7).fill(null);
+  const [y, m, d] = startStr.split('-').map(Number);
+  const base = new Date(y, m - 1, d);
+  return Array.from({ length: 7 }, (_, i) => {
+    const dt = new Date(base);
+    dt.setDate(base.getDate() + i);
+    return dt;
+  });
+}
+
+function fmt(date) {
+  if (!date) return '　/　';
+  return (date.getMonth() + 1) + '/' + date.getDate();
+}
+
+function fmtFull(date) {
+  if (!date) return '——年——月——日';
+  return date.getFullYear() + '年' + (date.getMonth() + 1) + '月' + date.getDate() + '日';
+}
+
+function fmtRange(dates) {
+  if (!dates[0]) return '——年——月——日（月）〜——月——日（日）';
+  const s = dates[0], e = dates[6];
+  return s.getFullYear() + '年' + (s.getMonth()+1) + '月' + s.getDate() + '日（月）〜' +
+         (e.getMonth()+1) + '月' + e.getDate() + '日（日）';
+}
+
+// ====== SCHEDULE GENERATION ======
+function generateSchedule() {
+  const startStr = document.getElementById('startDate').value;
+  const creator = document.getElementById('creatorName').value.trim();
+  const dates = getWeekDates(startStr);
+
+  const outpatient = getMultiCellData('outpatient');
+  const absent = getMultiCellData('absent');
+  const oncall = getMultiCellData('oncall');
+  const emg = getEmgData();
+  const visitors = getPersonData('visitor');
+  const trainees = getPersonData('trainee');
+
+  // Helper: render names in a simple cell
+  function namesHtml(names) {
+    if (!names || names.length === 0) return '';
+    return '<div class="cell-names">' + names.map(n => `<div>${n}</div>`).join('') + '</div>';
+  }
+
+  // Column widths: label 56px, others equal
+  const colHtml = `<col style="width:56px">` + Array(7).fill(`<col>`).join('');
+
+  // Header row
+  const headerCells = DAY_NAMES.map((d, i) => {
+    const cls = i >= 5 ? ' class="weekend-col"' : '';
+    return `<th${cls}>${d}<br><span style="font-size:10px;">${fmt(dates[i])}</span></th>`;
+  }).join('');
+
+  // Build table rows
+  let rows = '';
+
+  // --- Helper: multi-row category ---
+  function renderMultiRowCat(dataArr, label) {
+    let html = '';
+    const maxRows = dataArr.length;
+    for (let r = 0; r < maxRows; r++) {
+      html += r > 0 ? '<tr class="cat-cont-row">' : '<tr>';
+      html += `<td class="label-col">${r === 0 ? label : ''}</td>`;
+      for (let d = 0; d < 7; d++) {
+        const cls = d >= 5 ? ' class="weekend-bg"' : '';
+        const names = dataArr[r][d];
+        html += `<td${cls}>${namesHtml(names)}</td>`;
+      }
+      html += '</tr>';
+    }
+    return html;
+  }
+
+  // 外来担当
+  rows += renderMultiRowCat(outpatient, '外来\n担当');
+
+  // 不在者
+  rows += '<tr class="cat-border-top">';
+  rows += '<td class="label-col">不在者</td>';
+  for (let d = 0; d < 7; d++) {
+    const cls = d >= 5 ? ' class="weekend-bg"' : '';
+    const names = absent[0][d];
+    rows += `<td${cls}>${namesHtml(names)}</td>`;
+  }
+  rows += '</tr>';
+  for (let r = 1; r < absent.length; r++) {
+    rows += '<tr class="cat-cont-row">';
+    rows += '<td class="label-col"></td>';
+    for (let d = 0; d < 7; d++) {
+      const cls = d >= 5 ? ' class="weekend-bg"' : '';
+      rows += `<td${cls}>${namesHtml(absent[r][d])}</td>`;
+    }
+    rows += '</tr>';
+  }
+
+  // 当番医
+  rows += '<tr class="cat-border-top">';
+  rows += '<td class="label-col">当番医</td>';
+  for (let d = 0; d < 7; d++) {
+    const cls = d >= 5 ? ' class="weekend-bg"' : '';
+    const names = oncall[0][d];
+    rows += `<td${cls}>${namesHtml(names)}</td>`;
+  }
+  rows += '</tr>';
+  for (let r = 1; r < oncall.length; r++) {
+    rows += '<tr class="cat-cont-row">';
+    rows += '<td class="label-col"></td>';
+    for (let d = 0; d < 7; d++) {
+      const cls = d >= 5 ? ' class="weekend-bg"' : '';
+      rows += `<td${cls}>${namesHtml(oncall[r][d])}</td>`;
+    }
+    rows += '</tr>';
+  }
+
+  // 救急当直
+  rows += '<tr class="cat-border-top">';
+  rows += '<td class="label-col">救急\n当直</td>';
+  for (let d = 0; d < 5; d++) {
+    const names = emg.weekday[d];
+    const content = names && names.length ? namesHtml(names) : '<span class="emg-none">なし</span>';
+    rows += `<td>${content}</td>`;
+  }
+  // Sat
+  const satDayContent = emg.satDay.length ? emg.satDay.join('、') : '<span class="emg-none">なし</span>';
+  const satNightContent = emg.satNight.length ? emg.satNight.join('、') : '<span class="emg-none">なし</span>';
+  const sunDayContent = emg.sunDay.length ? emg.sunDay.join('、') : '<span class="emg-none">なし</span>';
+  const sunNightContent = emg.sunNight.length ? emg.sunNight.join('、') : '<span class="emg-none">なし</span>';
+
+  rows += `<td class="emg-cell weekend-bg">
+    <div class="emg-day-top"><div class="emg-slot-label">日直</div><div class="emg-name">${satDayContent}</div></div>
+    <div class="emg-day-bottom"><div class="emg-slot-label">当直</div><div class="emg-name">${satNightContent}</div></div>
+  </td>`;
+  rows += `<td class="emg-cell weekend-bg">
+    <div class="emg-day-top"><div class="emg-slot-label">日直</div><div class="emg-name">${sunDayContent}</div></div>
+    <div class="emg-day-bottom"><div class="emg-slot-label">当直</div><div class="emg-name">${sunNightContent}</div></div>
+  </td>`;
+  rows += '</tr>';
+
+  // Person bar rows (visitors/trainees)
+  function renderPersonRows(persons, label) {
+    if (persons.length === 0) return '';
+    let html = '<tr class="cat-border-top">';
+    html += `<td class="label-col" rowspan="${persons.length}">${label}</td>`;
+    html += personRowCells(persons[0]);
+    html += '</tr>';
+    for (let i = 1; i < persons.length; i++) {
+      html += '<tr>' + personRowCells(persons[i]) + '</tr>';
+    }
+    return html;
+  }
+
+  function personRowCells(p) {
+    let html = '';
+    for (let d = 0; d < 7; d++) {
+      const isWeekend = d >= 5;
+      const bgCls = isWeekend ? ' weekend-bg' : '';
+      if (d < p.start || d > p.end) {
+        // Not present
+        html += `<td class="person-cell${bgCls}"><span class="person-absent">—</span></td>`;
+      } else if (d === p.start) {
+        // Start cell: name only (no bar — bar starts from next day)
+        const teamHtml = p.team ? `<span class="person-team">（${p.team}）</span>` : '';
+        html += `<td class="person-cell${bgCls}">
+          <div class="person-name-block"><span>${p.name}</span>${teamHtml}</div>
+        </td>`;
+      } else {
+        // Continuation cell: bar drawn via ::before pseudo-element
+        html += `<td class="person-cell person-cont${bgCls}"></td>`;
+      }
+    }
+    return html;
+  }
+
+  rows += renderPersonRows(visitors, '見学生');
+  rows += renderPersonRows(trainees, '実習生');
+
+  // Today for footer
+  const today = new Date();
+  const todayStr = today.getFullYear() + '年' + (today.getMonth()+1) + '月' + today.getDate() + '日';
+
+  const html = `
+  <div class="schedule-wrapper">
+    <div class="schedule-title">週 間 勤 務 表</div>
+    <div class="schedule-subtitle">総合診療内科　${fmtRange(dates)}</div>
+    <table class="schedule-table">
+      <colgroup>${colHtml}</colgroup>
+      <thead>
+        <tr>
+          <th class="label-col"></th>
+          ${headerCells}
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+    <div class="schedule-footer">
+      <span>平日当番医は夜間のみ、土日祝は終日</span>
+      <span>作成日：${todayStr}　担当：${creator || '　　　　'}</span>
+    </div>
+    <button class="print-btn" onclick="window.print()">印刷</button>
+  </div>`;
+
+  document.getElementById('output').innerHTML = html;
+  document.getElementById('output').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
